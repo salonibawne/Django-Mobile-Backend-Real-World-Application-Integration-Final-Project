@@ -1,9 +1,14 @@
+
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Booking
 from .serializers import BookingSerializer
-from apps.notifications.models import Notification
+from apps.notifications.services import (
+    booking_cancelled_notification,
+    booking_confirmed_notification,
+    booking_completed_notification,
+)
 from apps.common.responses import success_response, error_response
 
 
@@ -62,12 +67,7 @@ class BookingCancelView(generics.GenericAPIView):
         booking.status = Booking.Status.CANCELLED
         booking.save()
 
-        Notification.objects.create(
-            user=booking.customer,
-            notification_type=Notification.NotificationType.BOOKING_CANCELLED,
-            title="Booking Cancelled",
-            message=f"Your booking #{booking.id} has been cancelled.",
-        )
+        booking_cancelled_notification(booking)
 
         return success_response(
             message="Booking cancelled successfully.",
@@ -103,12 +103,7 @@ class BookingConfirmView(generics.GenericAPIView):
         booking.status = Booking.Status.CONFIRMED
         booking.save()
 
-        Notification.objects.create(
-            user=booking.customer,
-            notification_type=Notification.NotificationType.BOOKING_CONFIRMED,
-            title="Booking Confirmed",
-            message=f"Your booking #{booking.id} has been confirmed.",
-        )
+        booking_confirmed_notification(booking)
 
         return success_response(
             message="Booking confirmed successfully.",
@@ -144,12 +139,7 @@ class BookingCompleteView(generics.GenericAPIView):
         booking.status = Booking.Status.COMPLETED
         booking.save()
 
-        Notification.objects.create(
-            user=booking.customer,
-            notification_type=Notification.NotificationType.BOOKING_COMPLETED,
-            title="Booking Completed",
-            message=f"Your booking #{booking.id} has been completed.",
-        )
+        booking_completed_notification(booking)
 
         return success_response(
             message="Booking completed successfully.",
