@@ -1,9 +1,10 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter
 from apps.common.responses import success_response, error_response
-
+from .filters import ServiceFilter
 from .models import Service, ServiceImage
 from .serializers import (
     ServiceSerializer,
@@ -16,6 +17,10 @@ class ServiceListCreateView(generics.ListCreateAPIView):
     serializer_class = ServiceSerializer
     permission_classes = [IsAuthenticated]
 
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = ServiceFilter
+    ordering_fields = ["price", "created_at"]
+    ordering = ["-created_at"]
     def get_queryset(self):
         queryset = Service.objects.all()
 
