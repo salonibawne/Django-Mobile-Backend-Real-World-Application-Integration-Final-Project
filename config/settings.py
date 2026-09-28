@@ -45,7 +45,6 @@ INSTALLED_APPS = [
 
     # Local apps
     'apps.accounts',
-    'apps.admin_panel',
     'apps.bookings',
     'apps.chat',
     'apps.notifications',
