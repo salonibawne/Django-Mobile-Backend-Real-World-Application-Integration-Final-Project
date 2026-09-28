@@ -1,6 +1,9 @@
 from celery import shared_task
 
-from .services import create_notification
+from .services import (
+    create_notification,
+    payment_success_notification,
+)
 
 
 @shared_task
@@ -20,5 +23,19 @@ def send_notification(
         title=title,
         message=message,
     )
+
+    return notification.id
+
+
+@shared_task
+def send_payment_success_notification(payment_id):
+    from apps.payments.models import Payment
+
+    payment = Payment.objects.select_related(
+        "booking",
+        "booking__customer",
+    ).get(id=payment_id)
+
+    notification = payment_success_notification(payment)
 
     return notification.id

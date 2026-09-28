@@ -5,7 +5,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from apps.notifications.tasks import send_payment_success_notification
 from apps.bookings.models import Booking
 from apps.common.responses import success_response, error_response
 
@@ -190,7 +190,8 @@ class PaymentWebhookView(APIView):
                 "transaction_id",
             ]
         )
-
+        if payment.payment_status == Payment.Status.SUCCESS:
+         send_payment_success_notification.delay(payment.id)
         return success_response(
             message="Payment status updated successfully.",
             data=PaymentSerializer(payment).data,
