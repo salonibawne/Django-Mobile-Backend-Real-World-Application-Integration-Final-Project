@@ -1,148 +1,159 @@
-
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import Booking
 from .serializers import BookingSerializer
-from apps.notifications.services import (
-    booking_cancelled_notification,
-    booking_confirmed_notification,
-    booking_completed_notification,
-)
-from apps.common.responses import success_response, error_response
 
 
-class BookingListCreateView(generics.ListCreateAPIView):
-    serializer_class = BookingSerializer
+class BookingListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return Booking.objects.filter(
-            customer=self.request.user
+    def get(self, request):
+        bookings = Booking.objects.filter(
+            customer=request.user
+        ).order_by("-created_at")
+
+        serializer = BookingSerializer(bookings, many=True)
+
+        return Response({
+            "success": True,
+            "message": "Bookings retrieved successfully",
+            "data": serializer.data,
+        })
+
+    def post(self, request):
+        serializer = BookingSerializer(data=request.data)
+
+        if serializer.is_valid():
+            booking = serializer.save(customer=request.user)
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Booking created successfully",
+                    "data": BookingSerializer(booking).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            {
+                "success": False,
+                "message": "Booking creation failed",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    def perform_create(self, serializer):
-        serializer.save(customer=self.request.user)
 
-
-class BookingDetailView(generics.RetrieveUpdateAPIView):
-    serializer_class = BookingSerializer
+class BookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return Booking.objects.filter(
-            customer=self.request.user
-        )
+    def get(self, request, pk):
+        try:
+            booking = Booking.objects.get(
+                pk=pk,
+                customer=request.user
+            )
+        except Booking.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Booking not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = BookingSerializer(booking)
+
+        return Response({
+            "success": True,
+            "message": "Booking retrieved successfully",
+            "data": serializer.data,
+        })
 
 
-class BookingCancelView(generics.GenericAPIView):
-    serializer_class = BookingSerializer
+class BookingConfirmView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        return Booking.objects.filter(
-            customer=self.request.user
-        )
-
-    def post(self, request, pk):
-        booking = self.get_queryset().filter(pk=pk).first()
-
-        if not booking:
-            return error_response(
-                message="Booking not found.",
-                error_code="BOOKING_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Booking not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        if booking.status in [
-            Booking.Status.CANCELLED,
-            Booking.Status.COMPLETED,
-        ]:
-            return error_response(
-                message="This booking cannot be cancelled.",
-                error_code="BOOKING_CANNOT_BE_CANCELLED",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
+        booking.status = "CONFIRMED"
+        booking.save(update_fields=["status"])
 
-        booking.status = Booking.Status.CANCELLED
-        booking.save()
+        serializer = BookingSerializer(booking)
 
-        booking_cancelled_notification(booking)
-
-        return success_response(
-            message="Booking cancelled successfully.",
-            data=BookingSerializer(booking).data,
-            status_code=status.HTTP_200_OK,
-        )
+        return Response({
+            "success": True,
+            "message": "Booking confirmed successfully",
+            "data": serializer.data,
+        })
 
 
-class BookingConfirmView(generics.GenericAPIView):
-    serializer_class = BookingSerializer
+class BookingCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, pk):
-        booking = Booking.objects.filter(
-            pk=pk,
-            service__provider__user=request.user,
-        ).first()
-
-        if not booking:
-            return error_response(
-                message="Booking not found.",
-                error_code="BOOKING_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.get(
+                pk=pk,
+                customer=request.user
+            )
+        except Booking.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Booking not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        if booking.status != Booking.Status.PENDING:
-            return error_response(
-                message="Only pending bookings can be confirmed.",
-                error_code="BOOKING_NOT_PENDING",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
+        booking.status = "CANCELLED"
+        booking.save(update_fields=["status"])
 
-        booking.status = Booking.Status.CONFIRMED
-        booking.save()
+        serializer = BookingSerializer(booking)
 
-        booking_confirmed_notification(booking)
-
-        return success_response(
-            message="Booking confirmed successfully.",
-            data=BookingSerializer(booking).data,
-            status_code=status.HTTP_200_OK,
-        )
+        return Response({
+            "success": True,
+            "message": "Booking cancelled successfully",
+            "data": serializer.data,
+        })
 
 
-class BookingCompleteView(generics.GenericAPIView):
-    serializer_class = BookingSerializer
+class BookingCompleteView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, pk):
-        booking = Booking.objects.filter(
-            pk=pk,
-            service__provider__user=request.user,
-        ).first()
-
-        if not booking:
-            return error_response(
-                message="Booking not found.",
-                error_code="BOOKING_NOT_FOUND",
-                status_code=status.HTTP_404_NOT_FOUND,
+    def patch(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Booking not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        if booking.status != Booking.Status.CONFIRMED:
-            return error_response(
-                message="Only confirmed bookings can be completed.",
-                error_code="BOOKING_NOT_CONFIRMED",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
+        booking.status = "COMPLETED"
+        booking.save(update_fields=["status"])
 
-        booking.status = Booking.Status.COMPLETED
-        booking.save()
+        serializer = BookingSerializer(booking)
 
-        booking_completed_notification(booking)
-
-        return success_response(
-            message="Booking completed successfully.",
-            data=BookingSerializer(booking).data,
-            status_code=status.HTTP_200_OK,
-        )
+        return Response({
+            "success": True,
+            "message": "Booking completed successfully",
+            "data": serializer.data,
+        })

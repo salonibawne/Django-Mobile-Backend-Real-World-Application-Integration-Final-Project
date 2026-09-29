@@ -1,11 +1,10 @@
 from django.urls import path
 
 from .views import (
-    MessageListCreateView,
     MessageDetailView,
+    MessageListCreateView,
     MessageMarkReadView,
 )
-
 
 urlpatterns = [
     path(

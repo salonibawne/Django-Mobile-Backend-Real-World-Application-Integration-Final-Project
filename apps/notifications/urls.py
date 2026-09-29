@@ -1,11 +1,10 @@
 from django.urls import path
 
 from .views import (
-    NotificationListView,
     NotificationDetailView,
+    NotificationListView,
     NotificationMarkReadView,
 )
-
 
 urlpatterns = [
     path(

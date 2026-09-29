@@ -3,11 +3,11 @@ from decimal import Decimal
 from django.db import IntegrityError
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
-from apps.notifications.tasks import send_payment_success_notification
+
 from apps.bookings.models import Booking
-from apps.common.responses import success_response, error_response
+from apps.common.responses import error_response, success_response
+from apps.notifications.tasks import send_payment_success_notification
 
 from .models import Payment
 from .serializers import PaymentSerializer

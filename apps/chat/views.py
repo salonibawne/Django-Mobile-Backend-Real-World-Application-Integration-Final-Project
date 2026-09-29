@@ -1,7 +1,8 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from apps.common.responses import success_response, error_response
+
+from apps.common.responses import error_response, success_response
+
 from .models import Message
 from .serializers import MessageSerializer
 

@@ -1,13 +1,13 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 
-from apps.common.responses import success_response, error_response
-from .models import User, Profile
+from apps.common.responses import success_response
 
+from .models import Profile, User
 from .serializers import (
-    RegisterSerializer,
-    ProfileSerializer,
     ProfileImageSerializer,
+    ProfileSerializer,
+    RegisterSerializer,
 )
 
 
@@ -28,7 +28,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
 
-        profile, created = Profile.objects.get_or_create(
+        profile, _created = Profile.objects.get_or_create(
             user=self.request.user
         )
 
@@ -45,7 +45,7 @@ class ProfileImageUploadView(generics.GenericAPIView):
 
     def get_object(self):
 
-        profile, created = Profile.objects.get_or_create(
+        profile, _created = Profile.objects.get_or_create(
             user=self.request.user
         )
 

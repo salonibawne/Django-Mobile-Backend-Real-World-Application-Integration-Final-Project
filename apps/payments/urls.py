@@ -1,13 +1,11 @@
 from django.urls import path
 
 from .views import (
+    PaymentDetailView,
     PaymentInitiateView,
     PaymentListView,
-    PaymentDetailView,
     PaymentWebhookView,
-
 )
-
 
 urlpatterns = [
     path(
