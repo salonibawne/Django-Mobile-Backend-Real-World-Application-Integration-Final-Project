@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+
 from rest_framework import serializers
 
 from .models import Profile, User
@@ -72,7 +74,6 @@ class ProfileImageSerializer(serializers.ModelSerializer):
 
     def validate_profile_image(self, image):
 
-    
         if image.size > 5 * 1024 * 1024:
             raise serializers.ValidationError(
                 "Image size must be less than 5 MB."
@@ -96,3 +97,35 @@ class ProfileImageSerializer(serializers.ModelSerializer):
             )
 
         return image
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+
+    old_password = serializers.CharField(
+        required=True,
+        write_only=True
+    )
+
+    new_password = serializers.CharField(
+        required=True,
+        write_only=True
+    )
+
+    def validate_old_password(self, value):
+
+        user = self.context["request"].user
+
+        if not user.check_password(value):
+            raise serializers.ValidationError(
+                "Old password is incorrect."
+            )
+
+        return value
+
+    def validate_new_password(self, value):
+
+        user = self.context["request"].user
+
+        validate_password(value, user)
+
+        return value

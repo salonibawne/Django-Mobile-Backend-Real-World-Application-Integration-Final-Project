@@ -80,7 +80,9 @@ class BookingConfirmView(APIView):
 
     def patch(self, request, pk):
         try:
-            booking = Booking.objects.get(pk=pk)
+            booking = Booking.objects.select_related(
+                "service__provider__user"
+            ).get(pk=pk)
         except Booking.DoesNotExist:
             return Response(
                 {
@@ -88,6 +90,16 @@ class BookingConfirmView(APIView):
                     "message": "Booking not found",
                 },
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Only the provider who owns the service can confirm the booking.
+        if booking.service.provider.user != request.user:
+            return Response(
+                {
+                    "success": False,
+                    "message": "You are not allowed to confirm this booking",
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         booking.status = "CONFIRMED"
@@ -137,7 +149,9 @@ class BookingCompleteView(APIView):
 
     def patch(self, request, pk):
         try:
-            booking = Booking.objects.get(pk=pk)
+            booking = Booking.objects.select_related(
+                "service__provider__user"
+            ).get(pk=pk)
         except Booking.DoesNotExist:
             return Response(
                 {
@@ -145,6 +159,16 @@ class BookingCompleteView(APIView):
                     "message": "Booking not found",
                 },
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Only the provider who owns the service can complete the booking.
+        if booking.service.provider.user != request.user:
+            return Response(
+                {
+                    "success": False,
+                    "message": "You are not allowed to complete this booking",
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         booking.status = "COMPLETED"

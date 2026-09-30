@@ -1,5 +1,8 @@
+import hashlib
+import hmac
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import IntegrityError
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -70,9 +73,7 @@ class PaymentInitiateView(APIView):
             payment = Payment.objects.create(
                 booking=booking,
                 amount=amount,
-                transaction_id=(
-                    f"MOCK-{booking.id}-{booking.customer.id}"
-                ),
+                transaction_id=f"MOCK-{booking.id}-{booking.customer.id}",
                 payment_status=Payment.Status.PENDING,
                 payment_method=Payment.Method.MOCK,
             )
@@ -135,6 +136,29 @@ class PaymentWebhookView(APIView):
     permission_classes = []
 
     def post(self, request):
+        # Verify webhook signature before processing the event.
+        signature = request.headers.get("X-Webhook-Signature")
+
+        if not signature:
+            return error_response(
+                message="Webhook signature is required.",
+                error_code="WEBHOOK_SIGNATURE_REQUIRED",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        expected_signature = hmac.new(
+            settings.PAYMENT_WEBHOOK_SECRET.encode(),
+            request.body,
+            hashlib.sha256,
+        ).hexdigest()
+
+        if not hmac.compare_digest(signature, expected_signature):
+            return error_response(
+                message="Invalid webhook signature.",
+                error_code="INVALID_WEBHOOK_SIGNATURE",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
+
         event = request.data.get("event")
         payment_id = request.data.get("payment_id")
         transaction_id = request.data.get("transaction_id")
@@ -190,10 +214,12 @@ class PaymentWebhookView(APIView):
                 "transaction_id",
             ]
         )
+
         if payment.payment_status == Payment.Status.SUCCESS:
-         send_payment_success_notification.delay(payment.id)
+            send_payment_success_notification.delay(payment.id)
+
         return success_response(
             message="Payment status updated successfully.",
             data=PaymentSerializer(payment).data,
             status_code=status.HTTP_200_OK,
-        )   
+        )

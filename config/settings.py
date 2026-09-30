@@ -26,7 +26,7 @@ environ.Env.read_env(BASE_DIR / ".env")
 import os
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
-
+PAYMENT_WEBHOOK_SECRET = env("PAYMENT_WEBHOOK_SECRET")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     
     # Third-party
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
 
     # Local apps
     'apps.accounts',
@@ -163,6 +164,16 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.OrderingFilter",
     ],
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "5/minute",
+        "user": "5/minute",
+    },
 }
 # Celery
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
